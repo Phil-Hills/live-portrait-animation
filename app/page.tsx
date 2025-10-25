@@ -2,10 +2,12 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { Upload, Sparkles, Video, ImageIcon, Play } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Upload, Sparkles, Video, ImageIcon, Play, Settings, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function Home() {
   const [sourceImage, setSourceImage] = useState<string | null>(null)
@@ -13,6 +15,21 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState<string>("")
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("huggingface_api_key")
+    if (savedApiKey) {
+      setApiKey(savedApiKey)
+    }
+  }, [])
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value)
+    localStorage.setItem("huggingface_api_key", value)
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -35,6 +52,12 @@ export default function Home() {
   const handleGenerate = async () => {
     if (!sourceImage || !drivingVideo) return
 
+    if (!apiKey) {
+      setError("Please enter your HuggingFace API key in the settings section below")
+      setShowSettings(true)
+      return
+    }
+
     setIsProcessing(true)
     setError(null)
     setResult(null)
@@ -47,6 +70,7 @@ export default function Home() {
       const formData = new FormData()
       formData.append("source_image", imageBlob, "portrait.jpg")
       formData.append("driving_video", videoBlob, "driving.mp4")
+      formData.append("api_key", apiKey)
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -86,14 +110,25 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500">
-              <Sparkles className="h-5 w-5 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">LivePortrait</h1>
+                <p className="text-sm text-slate-400">AI-Powered Talking Avatar Generator</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">LivePortrait</h1>
-              <p className="text-sm text-slate-400">AI-Powered Talking Avatar Generator</p>
-            </div>
+            <Button
+              onClick={() => setShowSettings(!showSettings)}
+              variant="outline"
+              size="sm"
+              className="border-slate-700 bg-slate-900/50 text-slate-300 hover:bg-slate-800"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Button>
           </div>
         </div>
       </header>
@@ -107,6 +142,58 @@ export default function Home() {
             stunning animated results with natural lip sync and facial expressions.
           </p>
         </div>
+
+        {showSettings && (
+          <Card className="mb-8 border-violet-900/50 bg-gradient-to-r from-violet-950/30 to-fuchsia-950/30 p-6 backdrop-blur-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="h-5 w-5 text-violet-400" />
+              <h3 className="text-lg font-semibold text-white">API Configuration</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="api-key" className="text-slate-300">
+                  HuggingFace API Key
+                </Label>
+                <div className="mt-2 flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="api-key"
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      placeholder="hf_..."
+                      className="border-slate-700 bg-slate-900/50 text-white placeholder:text-slate-500 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-slate-400">
+                  Get your free API key from{" "}
+                  <a
+                    href="https://huggingface.co/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-400 underline hover:text-violet-300"
+                  >
+                    huggingface.co/settings/tokens
+                  </a>
+                </p>
+              </div>
+              {apiKey && (
+                <div className="flex items-center gap-2 rounded-lg bg-green-950/30 border border-green-900/50 p-3">
+                  <div className="h-2 w-2 rounded-full bg-green-400" />
+                  <p className="text-sm text-green-300">API key saved and ready to use</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Upload Section */}
         <div className="mb-12 grid gap-8 lg:grid-cols-2">
@@ -307,30 +394,31 @@ export default function Home() {
           </Card>
         )}
 
-        <Card className="mt-12 border-amber-900/50 bg-amber-950/20 p-6 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-amber-500/20 p-2">
-              <Sparkles className="h-5 w-5 text-amber-400" />
+        {!apiKey && (
+          <Card className="mt-12 border-amber-900/50 bg-amber-950/20 p-6 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-amber-500/20 p-2">
+                <Sparkles className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h4 className="mb-2 font-semibold text-amber-200">HuggingFace API Key Required</h4>
+                <p className="text-sm text-amber-300/80">
+                  Click the <strong>Settings</strong> button above to enter your HuggingFace API key. You can get a free
+                  API key from{" "}
+                  <a
+                    href="https://huggingface.co/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-amber-200"
+                  >
+                    huggingface.co/settings/tokens
+                  </a>
+                  .
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="mb-2 font-semibold text-amber-200">HuggingFace API Key Required</h4>
-              <p className="text-sm text-amber-300/80">
-                To enable video generation, add your HuggingFace API key as an environment variable named{" "}
-                <code className="rounded bg-amber-900/30 px-1 py-0.5">HUGGINGFACE_API_KEY</code>. You can get a free API
-                key from{" "}
-                <a
-                  href="https://huggingface.co/settings/tokens"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-amber-200"
-                >
-                  huggingface.co/settings/tokens
-                </a>
-                . Add it in the Vars section of the sidebar.
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     </main>
   )
